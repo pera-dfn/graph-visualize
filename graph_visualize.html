@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="description here">
+  <title>グラフ可視化ツール</title>
+  <link rel="stylesheet" href="style.css">
+  
+</head>
+
+<body>
+  <h1>グラフ可視化ツール</h1>
+  <div class="wrapper">
+    <div class="page-description">
+      <p>グラフを表現するテキストを以下に入力してください。</p>
+    </div>
+
+    <textarea id="graph_input" name="graph_text" class="graph-text" placeholder="ここにグラフテキストを入力"></textarea>
+    
+    
+    <button name="run" class="button-submit" onclick="pera();">表示</button>
+
+    <div class="radio-area">
+      <input type="radio" name="is_directed" value="directed" id="directed" checked>
+      <label for="directed">有向グラフ</label>
+      <input type="radio" name="is_directed" value="undirected" id="undirected">
+      <label for="undirected">無向グラフ</label>
+    </div>
+
+
+    <div id="graph_output" class="graph-area">
+      <svg class="graph"></svg>
+    </div>
+  </div>
+
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+</body>
+<script src="script.js"></script></html>

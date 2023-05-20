@@ -1,0 +1,46 @@
+@charset "utf-8";
+
+html {
+  font-size: 100%;
+}
+
+.wrapper {
+  width: 70%;
+}
+
+h1 {
+  color: red;
+  text-align: left;
+
+  background-color: white;
+  border: none;
+  padding: 5px 5px;
+}
+
+.page-description {
+  color: black;
+}
+.button-submit {
+  margin: 10px auto;
+}
+.radio-area {
+  margin: 10px auto;
+}
+
+.graph-text {
+  min-height: 100px;
+}
+.graph-area {
+  margin: 10px auto;
+  min-height: 300px;
+  border: thin solid;
+}
+
+textarea {
+  width: 100%;
+}
+
+
+.graph {
+  background-color: yellow;
+}
