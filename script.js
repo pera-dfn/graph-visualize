@@ -1,129 +1,350 @@
-function run() {
-  /*
-# グラフ入力の書式について
-N M
-s1 t1 w1
-s2 t2 w2
-...
-sm tm wm
+/**
+ * HTMLからグラフ構築に必要な情報を持ってくるクラス。
+ */
+class GraphDOMLoader {
+  constructor() {
+    this.graph_input_id = "graphtext-input";
+    this.radio_directed_id = "directed";
+    this.radio_undirected_id = "undirected";
+    this.radio_zerobased_id = "radio-zero";
+    this.radio_onebased_id = "radio-one";
 
-N: ノード数
-M: エッジ数
-(s_i, t_i, w_i): s->tの重みwのエッジ
-有向グラフか無向グラフかはあらかじめ指定しておく
-*/
-  // HTML内にformで作っておけば直接formのメンバとしてtextareaなどを参照できる
-  var graph_area = document.getElementById("graph_output");
-  var text_area = document.getElementById("graph_input");
+  }
+
+  getGraphTextFromHTML() {
+    return document.getElementById(this.graph_input_id).value;
+  }
+
+  getIsDirectedFromHTML() {
+    const directed = document.getElementById(this.radio_directed_id);
+    return directed.checked;
+  }
+
+  getIndexBaseFromHTML() {
+    const selected = document.getElementById(this.radio_zerobased_id).checked;
+    return selected ? 0 : 1;
+  }
+}
+
+/**
+ * グラフテキストを、グラフを表現するデータに変換する
+ * @returns {object} グラフを表現するObject。
+ */
+function convertGraphTextToNumberArray(text) {
+  text = text.trim();
+  // グラフテキストを行に分割する
+  const re_newline = /\n+/
+  text_lines = text.split(re_newline);
+
+  // それぞれの行から数値を抽出する。
+  // 失敗した場合はErrorが出てくる。
+  number_lines = text_lines.map(getNumbersFromLine);
+
+  return number_lines
+
 
 }
 
-function pera() {
-  var width = document.querySelector("svg").clientWidth;
-  var height = document.querySelector("svg").clientHeight;
+/**
+ * 文字列から、含まれている数値をArrayとして返す。
+ * @param {string} text - 数値を抽出したい文字列
+ * @returns {Array} 数値を含んだ配列
+ */
+function getNumbersFromLine(text) {
+  // まずはtrimする。
+  text = text.trim();
+  // 空白文字1文字1以上を区切りとみなす。
+  const ws = /\s+/;
+  const segments = text.split(ws);
+
+  // それぞれのセグメントに対し、数値への変換を試みる。
+  // 失敗した場合はparseIntがErrorを吐く。
+  const int_array = segments.map(x => {
+    const conv = parseInt(x);
+    if (isNaN(conv)) {
+      throw new Error("Failed to parse integer.");
+    }
+    return conv;
+  });
+
+  return int_array;
+
+}
 
 
-  // var svg = d3.select("body").append("svg").attr({
-  //   width: width,
-  //   height: height
-  // });
+/**
+ * グラフテキストとフラグから、グラフデータを作成する
+ * @returns {object} グラフを表現するオブジェクト
+ */
+function createGraphData(graph_text, is_directed, index_base) {
+  // グラフテキスト（HTMLから引っ張ってきたそのまま）を、行ごとに数値の配列に変換する。
+  const num_array = convertGraphTextToNumberArray(graph_text);
 
-  var nodeNumber = 30;
-  var nodesData = [];
+  // 最低1行は必要。
+  if (num_array.length == 0) {
+    throw new Error("There is no line.");
+  }
 
-  for (var i = 0; i < nodeNumber; i++) {
-    nodesData.push({
+  // 1行目は[nodes_count, edges_count]の形式でなければならない。
+  const first_numbers = num_array[0];
+  if (first_numbers.length != 2) {
+    throw new Error("The first line is invalid.");
+  }
+  const nodes_count = first_numbers[0];
+  const edges_count = first_numbers[1];
+
+  // 2行目からはエッジの定義が要求されるため、全体の行数はedges_count+1でなければならない。
+  const rest_lines_count = num_array.length - 1;
+  if (rest_lines_count != edges_count) {
+    throw new Error("Edge counts and line counts did not match.")
+  }
+
+  // 2行目以降がエッジのデータになる。
+  const edges_num = num_array.slice(1);
+
+  const edges = edges_num.map(getEdgeData);
+
+  return {
+    nodes_count: nodes_count,
+    edges_count: edges_count,
+    edges: edges,
+    directed: is_directed,
+    index_base: index_base
+  };
+
+}
+
+/**
+ * 数値の配列をエッジデータに変換する。
+ * @param {Array} nums - numberの配列。"from to weight"の順番。
+ * @returns {object} from, to, weightを持つobject。
+ */
+function getEdgeData(nums) {
+  // 各行は[from, to]または[from, to, weight]の形式でなければならない。
+  if (nums.length < 2 || nums.length > 3) {
+    throw new Error("Invalid edge definition.");
+  }
+  const from = nums[0];
+  const to = nums[1];
+  // 辺の重みのデフォルトは1とする。
+  let weight = 1;
+  if (nums.length == 3) {
+    weight = nums[2];
+  }
+
+  const g = {
+    from: from,
+    to: to,
+    weight: weight
+  };
+
+  return g;
+}
+
+
+function draw() {
+  try {
+    // HTMLからテキストやフラグなどのデータを読み込む。
+    const dom = new GraphDOMLoader();
+    const graphtext = dom.getGraphTextFromHTML();
+    const is_directed = dom.getIsDirectedFromHTML();
+    const index_base = dom.getIndexBaseFromHTML();
+
+    // HTMLから読み込んだデータを元に、グラフを作成する。
+    // オブジェクト型として帰ってくる。
+    const graph = createGraphData(graphtext, is_directed, index_base);
+
+    // グラフデータと対象のDOM IDを指定する。
+    draw_graph("graph-output", graph);
+
+  }
+  catch (error) {
+    const errorbox = document.getElementById("error-output");
+    errorbox.textContent = "Error: " + error.message + " ";
+  }
+}
+
+function draw_graph(dom_id, graph) {
+  const graph_output_id = "#graph-output";
+
+
+
+  // エッジのvalidation
+  let edge_node_min = Infinity;
+  let edge_node_max = -1;
+  for (let i = 0; i < graph.edges.length; i++) {
+    let s = graph.edges[i].from;
+    let t = graph.edges[i].to;
+    edge_node_min = Math.min(edge_node_min, s, t);
+    edge_node_max = Math.max(edge_node_max, s, t);
+  }
+  if (edge_node_min < graph.index_base ||
+    edge_node_max >= graph.nodes_count + graph.index_base) {
+    throw new Error("Some edges' source or destination are invalid");
+  }
+
+  // 今あるsvgを削除
+  d3.select(graph_output_id)
+    .selectAll("svg")
+    .remove();
+
+  // svgを新たに作成
+  const width = 800;
+  const height = 800;
+  let svg = d3.select(graph_output_id)
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+
+  // ノードデータの作成
+  var nodes_data = [];
+  for (let i = 0; i < graph.nodes_count; i++) {
+    nodes_data.push({
       "index": i,
-      "x": width * Math.random(),
-      "y": height * Math.random(),
-      "r": 10
+      "x": width / 2,
+      "y": height / 2,
+      "r": 30,
     });
   }
+  // エッジのデータ。
+  var edges_data = [];
+  for (let edge of graph.edges) {
+    let src = edge.from - graph.index_base;
+    let dst = edge.to - graph.index_base;
+    let w = edge.weight;
 
-  var linksData = [];
-  var i = 0;
-  for (var j = i + 1; j < nodeNumber; j++) {
-    linksData.push({
-      "source": i,
-      "target": j,
-      "l": Math.random() * 150 + 5 + nodesData[i].r + nodesData[j].r
-    });
+    edges_data.push({
+      "source": src,
+      "target": dst,
+      "weight": w,
+      "x1": nodes_data[src].x,
+      "x2": nodes_data[dst].x,
+      "y1": nodes_data[src].y,
+      "y2": nodes_data[dst].y,
+      "l": 150 + nodes_data[src].r
+        + nodes_data[dst].r
+    })
   }
 
-  var link = d3.select("svg")
+
+  let edge = d3.select("svg")
     .selectAll("line")
-    .data(linksData)
+    .data(edges_data)
     .enter()
     .append("line")
     .attr("stroke-width", 1)
-    .attr("stroke", "black");
+    .attr("stroke", "black")
+    .attr("x1", d => d.x1)
+    .attr("y1", d => d.y1)
+    .attr("x2", d => d.x2)
+    .attr("y2", d => d.y2);
 
-  var node = d3.select("svg")
+  let node = d3.select("svg")
     .selectAll("circle")
-    .data(nodesData)
+    .data(nodes_data)
     .enter()
     .append("circle")
-    .attr("r", function(d) { return d.r; })
-    .attr("fill", "lightSalmon")
+    .attr("r", d => d.r)
+    .attr("cx", d => d.x)
+    .attr("cy", d => d.y)
+    .attr("fill", "lightyellow")
     .attr("stroke", "black")
     .call(d3.drag()
       .on("start", dragstarted)
       .on("drag", dragged)
       .on("end", dragended));
 
+  // 一番上に描画するために、最後に呼び出す必要がある。
+  let node_label = d3.select("svg")
+    .append("g")
+    .selectAll("text")
+    .data(nodes_data)
+    .enter()
+    .append("text")
+    .attr("x", d => d.x)
+    .attr("y", d => d.y)
+    .attr("fill", "black")
+    .attr("font-size", 30)
+    .attr("text-anchor", "middle")
+    .attr("dominant-baseline", "central")
+    .text(d => (d.index + graph.index_base).toString());
 
-    var simulation = d3.forceSimulation()
-      .force("link",
-        d3.forceLink()
-          .distance(function(d) { return d.l; })
-          .strength(0.03)
-          .iterations(16))
-      .force("collide",
-        d3.forceCollide()
-          .radius(function(d) { return d.r; })
-          .strength(0.7)
-          .iterations(16))
-      .force("charge", d3.forceManyBody().strength(-200))
-      .force("x", d3.forceX().strength(0.02).x(width / 2))
-      .force("y", d3.forceY().strength(0.02).y(height / 2));
+  let edge_label = d3.select("svg")
+    .append("g")
+    .selectAll("text")
+    .data(edges_data)
+    .enter()
+    .append("text")
+    .attr("x", d => (d.x1 + d.x2) / 2)
+    .attr("y", d => (d.y1 + d.y2) / 2)
+    .attr("fill", "black")
+    .attr("font-size", 18)
+    .attr("text-anchor", "middle")
+    .attr("dominant-baseline", "central")
+    .text(d => d.weight.toString());
 
-    simulation
-      .nodes(nodesData)
-      .on("tick", ticked);
 
-    simulation.force("link")
-      .links(linksData)
-      .id(function(d) { return d.index; });
+  let simulation = d3.forceSimulation()
+    .force("link",
+      d3.forceLink()
+        .distance(d => d.l)
+        .strength(0.5)
+        .iterations(16))
+    .force("collide",
+      d3.forceCollide()
+        .radius(d => d.r)
+        .strength(0.7)
+        .iterations(16))
+    .force("charge", d3.forceManyBody().strength(-20))
 
-    function ticked() {
-      link
-        .attr("x1", function(d) { return d.source.x; })
-        .attr("y1", function(d) { return d.source.y; })
-        .attr("x2", function(d) { return d.target.x; })
-        .attr("y2", function(d) { return d.target.y; });
-      node
-        .attr("cx", function(d) { return d.x; })
-        .attr("cy", function(d) { return d.y; });
-    }
+  simulation
+    .nodes(nodes_data)
+    .on("tick", ticked);
 
-    function dragstarted(d) {
-      if(!d3.event.active)
-        simulation.alphaTarget(0.3).restart();
-      d.fx = d.x;
-      d.fy = d.y;
-    }
+  simulation.force("link")
+    .links(edges_data)
+    .id(d => d.index);
 
-    function dragged(d) {
-      d.fx = d3.event.x;
-      d.fy = d3.event.y;
-    }
+  function ticked() {
+    edge
+      .attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y);
+    node
+      .attr("cx", d => d.x)
+      .attr("cy", d => d.y);
 
-    function dragended(d) {
-      if(!d3.event.active)
-        simulation.alphaTarget(0);
-      d.fx = null;
-      d.fy = null;
-    }
+    node_label
+      .attr("x", d => d.x)
+      .attr("y", d => d.y);
+
+    edge_label
+      .attr("x", d => (d.source.x + d.target.x) / 2)
+      .attr("y", d => (d.source.y + d.target.y) / 2);
+  }
+
+
+  function dragstarted(event) {
+    if (!event.active)
+      simulation.alphaTarget(0.9).restart();
+
+    event.subject.fx = event.x;
+    event.subject.fy = event.y;
+  }
+
+  function dragged(event) {
+    event.subject.fx = event.x;
+    event.subject.fy = event.y;
+  }
+
+  function dragended(event) {
+    if (!event.active)
+      simulation.alphaTarget(0);
+    event.subject.fx = null;
+    event.subject.fy = null;
+  }
 }
 
 

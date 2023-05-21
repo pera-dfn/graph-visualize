@@ -5,11 +5,11 @@ html {
 }
 
 .wrapper {
-  width: 70%;
+  max-width: 800px;
 }
 
 h1 {
-  color: red;
+  color: black;
   text-align: left;
 
   background-color: white;
@@ -17,9 +17,10 @@ h1 {
   padding: 5px 5px;
 }
 
-.page-description {
-  color: black;
+textarea{
+  resize: vertical;
 }
+
 .button-submit {
   margin: 10px auto;
 }
@@ -30,17 +31,18 @@ h1 {
 .graph-text {
   min-height: 100px;
 }
-.graph-area {
+
+#graph-output {
   margin: 10px auto;
-  min-height: 300px;
+  padding: 0;
   border: thin solid;
+
+}
+.graph {
+  /* background-color: yellow; */
 }
 
 textarea {
   width: 100%;
 }
 
-
-.graph {
-  background-color: yellow;
-}
