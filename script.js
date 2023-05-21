@@ -228,7 +228,7 @@ function draw_graph(dom_id, graph) {
   }
 
 
-  let edge = d3.select("svg")
+  let edge = svg
     .selectAll("line")
     .data(edges_data)
     .enter()
@@ -240,7 +240,7 @@ function draw_graph(dom_id, graph) {
     .attr("x2", d => d.x2)
     .attr("y2", d => d.y2);
 
-  let node = d3.select("svg")
+  let node = svg
     .selectAll("circle")
     .data(nodes_data)
     .enter()
@@ -256,7 +256,7 @@ function draw_graph(dom_id, graph) {
       .on("end", dragended));
 
   // 一番上に描画するために、最後に呼び出す必要がある。
-  let node_label = d3.select("svg")
+  let node_label = svg
     .append("g")
     .selectAll("text")
     .data(nodes_data)
@@ -270,7 +270,7 @@ function draw_graph(dom_id, graph) {
     .attr("dominant-baseline", "central")
     .text(d => (d.index + graph.index_base).toString());
 
-  let edge_label = d3.select("svg")
+  let edge_label = svg
     .append("g")
     .selectAll("text")
     .data(edges_data)
