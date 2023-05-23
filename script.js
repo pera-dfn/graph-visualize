@@ -143,6 +143,7 @@ function getEdgeData(nums) {
 
 
 function draw() {
+  let error_msg = "";
   try {
     // HTMLからテキストやフラグなどのデータを読み込む。
     const dom = new GraphDOMLoader();
@@ -151,7 +152,6 @@ function draw() {
     const index_base = dom.getIndexBaseFromHTML();
 
     // HTMLから読み込んだデータを元に、グラフを作成する。
-    // オブジェクト型として帰ってくる。
     const graph = createGraphData(graphtext, is_directed, index_base);
 
     // グラフデータと対象のDOM IDを指定する。
@@ -159,8 +159,11 @@ function draw() {
 
   }
   catch (error) {
+    error_msg = "Error: " + error.message + " ";
+  }
+  finally {
     const errorbox = document.getElementById("error-output");
-    errorbox.textContent = "Error: " + error.message + " ";
+    errorbox.textContent = error_msg;
   }
 }
 
@@ -183,12 +186,12 @@ function draw_graph(dom_id, graph) {
     throw new Error("Some edges' source or destination are invalid");
   }
 
-  // 今あるsvgを削除
+  // Remove the existing svg
   d3.select(graph_output_id)
     .selectAll("svg")
     .remove();
 
-  // svgを新たに作成
+  // Create a new svg
   const width = 800;
   const height = 800;
   let svg = d3.select(graph_output_id)
@@ -197,7 +200,7 @@ function draw_graph(dom_id, graph) {
     .attr("height", height);
 
 
-  // ノードデータの作成
+  // Construct node data for d3
   var nodes_data = [];
   for (let i = 0; i < graph.nodes_count; i++) {
     nodes_data.push({
@@ -207,7 +210,7 @@ function draw_graph(dom_id, graph) {
       "r": 30,
     });
   }
-  // エッジのデータ。
+  // Construct edge data for d3
   var edges_data = [];
   for (let edge of graph.edges) {
     let src = edge.from - graph.index_base;
@@ -222,7 +225,7 @@ function draw_graph(dom_id, graph) {
       "x2": nodes_data[dst].x,
       "y1": nodes_data[src].y,
       "y2": nodes_data[dst].y,
-      "l": 150 + nodes_data[src].r
+      "l": 30 + nodes_data[src].r
         + nodes_data[dst].r
     })
   }
@@ -255,7 +258,20 @@ function draw_graph(dom_id, graph) {
       .on("drag", dragged)
       .on("end", dragended));
 
-  // 一番上に描画するために、最後に呼び出す必要がある。
+  let edge_label = svg
+    .append("g")
+    .selectAll("text")
+    .data(edges_data)
+    .enter()
+    .append("text")
+    .attr("x", d => (d.x1 + d.x2) / 2)
+    .attr("y", d => (d.y1 + d.y2) / 2)
+    .attr("fill", "black")
+    .attr("font-size", 18)
+    .attr("text-anchor", "middle")
+    .attr("dominant-baseline", "central")
+    .text(d => d.weight.toString());
+  
   let node_label = svg
     .append("g")
     .selectAll("text")
@@ -270,33 +286,21 @@ function draw_graph(dom_id, graph) {
     .attr("dominant-baseline", "central")
     .text(d => (d.index + graph.index_base).toString());
 
-  let edge_label = svg
-    .append("g")
-    .selectAll("text")
-    .data(edges_data)
-    .enter()
-    .append("text")
-    .attr("x", d => (d.x1 + d.x2) / 2)
-    .attr("y", d => (d.y1 + d.y2) / 2)
-    .attr("fill", "black")
-    .attr("font-size", 18)
-    .attr("text-anchor", "middle")
-    .attr("dominant-baseline", "central")
-    .text(d => d.weight.toString());
 
 
   let simulation = d3.forceSimulation()
     .force("link",
       d3.forceLink()
-        .distance(d => d.l)
-        .strength(0.5)
+        .distance(200)
+        .strength(0.1)
         .iterations(16))
+    .force("charge", d3.forceManyBody().strength(-60))
+    .force("center", d3.forceCenter(width / 2, height / 2))
     .force("collide",
       d3.forceCollide()
         .radius(d => d.r)
         .strength(0.7)
         .iterations(16))
-    .force("charge", d3.forceManyBody().strength(-20))
 
   simulation
     .nodes(nodes_data)
@@ -326,24 +330,24 @@ function draw_graph(dom_id, graph) {
   }
 
 
-  function dragstarted(event) {
-    if (!event.active)
-      simulation.alphaTarget(0.9).restart();
+  function dragstarted(d) {
+    if (!d.active)
+      simulation.alphaTarget(0.3).restart();
 
-    event.subject.fx = event.x;
-    event.subject.fy = event.y;
+    d.subject.fx = d.x;
+    d.subject.fy = d.y;
   }
 
-  function dragged(event) {
-    event.subject.fx = event.x;
-    event.subject.fy = event.y;
+  function dragged(d) {
+    d.subject.fx = d.x;
+    d.subject.fy = d.y;
   }
 
-  function dragended(event) {
-    if (!event.active)
+  function dragended(d) {
+    if (!d.active)
       simulation.alphaTarget(0);
-    event.subject.fx = null;
-    event.subject.fy = null;
+    d.subject.fx = null;
+    d.subject.fy = null;
   }
 }
 
